@@ -13,7 +13,7 @@
 // Macro to send different sensor values
 #define uartSendSensorData(buff, sensorValue, sensorValueType)                                    \ 
         sensorValueType != SENSOR_ERROR ? sprintf(buff, "%d:%3.2f", sensorValueType, sensorValue) \
-        : sprintf(buff, "%d:Sensor_Error\n", sensorValue);                                        \
+        : sprintf(buff, "%d:Sensor_Error", sensorValue);                                          \
         Serial.println(buff);
 
 #define DHTPIN 10 // Digital pin connected to the DHT sensor
@@ -39,19 +39,20 @@ char stringBuffer[10];
 float humidity, temperature, heatIndex;
 
 // UART_SIGNAL_PIN goes high momentarily to provide synchronization with the receiver
+// Makes sure that we send only correct data
 void uartSendAllSensorData() {
   digitalWrite(UART_SIGNAL_PIN, HIGH);
-  uartSendSensorData(stringBuffer, temperature, TEMPERATURE);
+  uartSendSensorData(stringBuffer, isnan(temperature) ? SENSOR_ERROR : temperature, isnan(temperature) ? SENSOR_ERROR : TEMPERATURE);
   delay(200);
   digitalWrite(UART_SIGNAL_PIN, LOW);
   delay(100);
   digitalWrite(UART_SIGNAL_PIN, HIGH);
-  uartSendSensorData(stringBuffer, humidity, HUMIDITY);
+  uartSendSensorData(stringBuffer, isnan(humidity) ? SENSOR_ERROR : humidity, isnan(humidity) ? SENSOR_ERROR : HUMIDITY);
   delay(200);
   digitalWrite(UART_SIGNAL_PIN, LOW);
   delay(100);
   digitalWrite(UART_SIGNAL_PIN, HIGH);
-  uartSendSensorData(stringBuffer, heatIndex, HEAT_INDEX);
+  uartSendSensorData(stringBuffer, (isnan(temperature) || isnan(humidity)) ? SENSOR_ERROR : heatIndex, isnan(temperature) || isnan(humidity) ? SENSOR_ERROR : HEAT_INDEX);
   delay(200);
   digitalWrite(UART_SIGNAL_PIN, LOW);
 }
@@ -68,7 +69,6 @@ void readAllSensorData() {
 
   // Check if any reads failed and exit early (to try again).
   if (isnan(humidity) || isnan(temperature)) {
-    uartSendSensorData(stringBuffer, SENSOR_ERROR, SENSOR_ERROR);
     return;
   } else {
     // Compute heat index in Celsius (isFahreheit = false)

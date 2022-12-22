@@ -8,13 +8,14 @@
 // set the LCD address to 0x27 for a 16 chars and 2 line display
 LiquidCrystal_I2C lcd(0x27,20,4); 
 
+// states that are shared between multiple methods
 float tempData, humData, heatIndexData;
-char sensorDatabuff[20];
 int floatFirstPart = 0;
 int floatSecondPart = 0;
 
 unsigned long lcdRefreshTimeout = 0;
 
+// 3 point decimal precision
 void splitFloatValue(float value) {
   floatFirstPart = value; // truncate anything after the decimal
   floatSecondPart = value * 1000; 
@@ -22,9 +23,12 @@ void splitFloatValue(float value) {
 }
 
 void refreshSensorDataOnLCD(float sensorValue) {
+  char sensorDatabuff[20];
+
   lcd.clear();
   lcd.setCursor(0, 0);
   splitFloatValue(sensorValue);
+  // Custom string building from float value as the LCD is no able to display float values correctly
   sprintf(sensorDatabuff, "Temp: %d.%d", floatFirstPart, floatSecondPart);
   lcd.print(sensorDatabuff);
 }
@@ -58,7 +62,9 @@ void uartReadSensorData() {
     // update only complete sensor data
     if (readString.length() > 0 && receivedCharacter == '\n') {
       sensorDataDelimiter = readString.indexOf(':');
+      // sensorDataDelimiter should be greater than 0 for complete data
       if (sensorDataDelimiter > 0) {
+        // update the sensor data and its type
         updateSensorData(atoi(readString.substring(0, sensorDataDelimiter).c_str()), 
         atof(readString.substring(sensorDataDelimiter + 1, readString.length()).c_str()));
       } else {
