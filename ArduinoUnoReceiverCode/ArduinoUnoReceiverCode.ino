@@ -21,14 +21,18 @@ void splitFloatValue(float value) {
   floatSecondPart = floatSecondPart - floatFirstPart * 1000; // we will get the decimal part alone
 }
 
+void refreshSensorDataOnLCD(float sensorValue) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  splitFloatValue(sensorValue);
+  sprintf(sensorDatabuff, "Temp: %d.%d", floatFirstPart, floatSecondPart);
+  lcd.print(sensorDatabuff);
+}
+
 // refreshes LCD every 1 second
 void refreshLCD() {
   if(millis() - lcdRefreshTimeout >= 1000) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    splitFloatValue(tempData);
-    sprintf(sensorDatabuff, "Temp: %d.%d", floatFirstPart, floatSecondPart);
-    lcd.print(sensorDatabuff);
+    refreshSensorDataOnLCD(tempData);
     lcdRefreshTimeout = millis();
   }
 }
@@ -60,6 +64,7 @@ void uartReadSensorData() {
       } else {
         Serial.println("Sensor Data Error");
       }
+      // reset the sensor data
       readString = "";
     } 
   }
