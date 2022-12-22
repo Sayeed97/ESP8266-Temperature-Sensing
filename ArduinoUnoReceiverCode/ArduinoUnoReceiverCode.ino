@@ -1,6 +1,5 @@
 #include <LiquidCrystal_I2C.h>
 
-#define SENSOR_ERROR -1
 #define TEMPERATURE 0
 #define HUMIDITY 1
 #define HEAT_INDEX 2
@@ -9,25 +8,64 @@
 // set the LCD address to 0x27 for a 16 chars and 2 line display
 LiquidCrystal_I2C lcd(0x27,20,4); 
 
-String readString;
-char c;
-int sensorDataDelimiter = -1; // indicates no index
+float tempData, humData, heatIndexData;
+int dataType;
+float data;
+char sensorDatabuff[20];
+int floatFirstPart = 0;
+int floatSecondPart = 0;
 
-void displaySensorData() {
+unsigned long lcdRefreshTimeout = 0;
+
+void splitFloatValue(float value) {
+  floatFirstPart = value; // truncate anything after the decimal
+  floatSecondPart = value * 1000; 
+  floatSecondPart = floatSecondPart - floatFirstPart * 1000; // we will get the decimal part alone
+}
+
+// refreshes LCD every 1 second
+void refreshLCD() {
+  if(millis() - lcdRefreshTimeout >= 1000) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    splitFloatValue(tempData);
+    sprintf(snesorDatabuff, "Temp: %d.%d", floatFirstPart, floatSecondPart);
+    lcd.print(sensorDatabuff);
+    lcdRefreshTimeout = millis();
+  }
+}
+
+void updateSensorData(int type, float data) {
+  if (type == TEMPERATURE) {
+    tempData = data;
+  } else if (type == HUMIDITY) {  
+      humData = data;
+  } else if (type == HEAT_INDEX) {
+      heatIndexData = data;
+  }
+}
+
+void uartReadSensorData() {
+  char receivedCharacter;
+  String readString;
+  int sensorDataDelimiter = -1; // indicates no index
   while(digitalRead(UART_SIGNAL_PIN) == HIGH && Serial.available()) {
     delay(5); // delay to allow byte to arrive in input buffer
-    c = Serial.read();
-    readString += c;
-    if (readString.length() > 0 && c == '\n') {
+    receivedCharacter = Serial.read();
+    readString += receivedCharacter;
+    // update only complete sensor data
+    if (readString.length() > 0 && receivedCharacter == '\n') {
       sensorDataDelimiter = readString.indexOf(':');
       if (sensorDataDelimiter > 0) {
-        Serial.println(readString);
+        updateSensorData(atoi(readString.substring(0, sensorDataDelimiter).c_str()), 
+        atof(readString.substring(sensorDataDelimiter + 1, readString.length()).c_str()));
       } else {
         Serial.println("Sensor Data Error");
       }
       readString = "";
     } 
-  } 
+  }
+  // discard incomplete sensor data 
   if (readString.length() > 0) {
     readString = "";
   }
@@ -43,11 +81,11 @@ void setup() {
   lcd.init(); 
   lcd.backlight();
   lcd.clear();
-  lcd.setCursor(1,0);
-  lcd.print("Reading Sensor..");
-  delay(1000);
+  // start LCD refresh timer
+  unsigned long lcdRefreshTimeout = millis();
 }
 
 void loop() {
-  displaySensorData();
+  uartReadSensorData();
+  refreshLCD();
 }

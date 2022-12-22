@@ -11,9 +11,9 @@
 #define UART_SIGNAL_PIN 15 // to enable USART mode
 
 // Macro to send different sensor values
-#define uartSendSensorData(buff, sensorValue, sensorValueType)                                   \ 
-        sensorValueType != SENSOR_ERROR ? sprintf(buff, "%d:%0.2f", sensorValueType, sensorValue) \
-        : sprintf(buff, "%d:Sensor_Error\n", sensorValue);                                       \
+#define uartSendSensorData(buff, sensorValue, sensorValueType)                                    \ 
+        sensorValueType != SENSOR_ERROR ? sprintf(buff, "%d:%3.2f", sensorValueType, sensorValue) \
+        : sprintf(buff, "%d:Sensor_Error\n", sensorValue);                                        \
         Serial.println(buff);
 
 #define DHTPIN 10 // Digital pin connected to the DHT sensor
