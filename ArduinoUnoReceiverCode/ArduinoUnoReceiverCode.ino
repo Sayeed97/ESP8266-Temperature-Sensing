@@ -9,8 +9,6 @@
 LiquidCrystal_I2C lcd(0x27,20,4); 
 
 float tempData, humData, heatIndexData;
-int dataType;
-float data;
 char sensorDatabuff[20];
 int floatFirstPart = 0;
 int floatSecondPart = 0;
@@ -29,7 +27,7 @@ void refreshLCD() {
     lcd.clear();
     lcd.setCursor(0, 0);
     splitFloatValue(tempData);
-    sprintf(snesorDatabuff, "Temp: %d.%d", floatFirstPart, floatSecondPart);
+    sprintf(sensorDatabuff, "Temp: %d.%d", floatFirstPart, floatSecondPart);
     lcd.print(sensorDatabuff);
     lcdRefreshTimeout = millis();
   }
