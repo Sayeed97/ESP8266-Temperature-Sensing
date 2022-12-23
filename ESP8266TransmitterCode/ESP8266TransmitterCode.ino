@@ -12,7 +12,7 @@
 
 // Macro to send different sensor values
 #define uartSendSensorData(buff, sensorValue, sensorValueType)                                    \ 
-        sensorValueType != SENSOR_ERROR ? sprintf(buff, "%d:%3.2f", sensorValueType, sensorValue) \
+        sensorValueType != SENSOR_ERROR ? sprintf(buff, "%d:%3.3f", sensorValueType, sensorValue) \
         : sprintf(buff, "%d:Sensor_Error", sensorValue);                                          \
         Serial.println(buff);
 
@@ -35,10 +35,11 @@
 DHT dht(DHTPIN, DHTTYPE);
 
 // 10 characters = 8 char sensor value + \0 null char + buffer char
-char stringBuffer[10];
+char stringBuffer[20];
 float humidity, temperature, heatIndex;
 
 // UART_SIGNAL_PIN goes high momentarily to provide synchronization with the receiver
+// Sends sensor data type as a meta data
 // Makes sure that we send only correct data
 void uartSendAllSensorData() {
   digitalWrite(UART_SIGNAL_PIN, HIGH);
