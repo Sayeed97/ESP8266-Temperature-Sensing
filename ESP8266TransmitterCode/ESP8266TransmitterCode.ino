@@ -3,11 +3,9 @@
 // - Adafruit Unified Sensor Lib: https://github.com/adafruit/Adafruit_Sensor
 
 #include "DHT.h"
+#include "DHT11SensorDataTypes.h"
 
 #define SENSOR_ERROR -1
-#define TEMPERATURE 0
-#define HUMIDITY 1
-#define HEAT_INDEX 2
 #define UART_SIGNAL_PIN 15 // to enable USART mode
 
 // Macro to send different sensor values

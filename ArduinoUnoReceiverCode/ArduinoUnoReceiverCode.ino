@@ -1,9 +1,7 @@
 #include <LiquidCrystal_I2C.h>
+#include "DHT11SensorDataTypes.h"
 
-#define TEMPERATURE 0
-#define HUMIDITY 1
-#define HEAT_INDEX 2
-#define UART_SIGNAL_PIN 2
+#define UART_SIGNAL_PIN 2 // signal pin for synchronizing with receiver
 #define Y_AXIS_ANALOG_STICK_PIN 15 // A2 pin on arduino
 
 // set the LCD address to 0x27 for a 16 chars and 2 line display
@@ -13,7 +11,7 @@ LiquidCrystal_I2C lcd(0x27,20,4);
 float tempData, humData, heatIndexData;
 int floatFirstPart = 0;
 int floatSecondPart = 0;
-int sensorDataType = TEMPERATURE;
+int sensorDataType = TEMPERATURE; // this state is used by the lcd to display the sensor data by its type
 unsigned long lcdRefreshTimeout = 0;
 
 // Analog Joystick states 
@@ -22,14 +20,19 @@ int yAxisMap = 0;
 unsigned long joystickStateUpdateTimeout = millis();
 
 // updates sensorDataType based on joystick movement every 800 ms
-void senseJoyStickChange() {
+// cyclic function to cycle between 0->2 state
+// 0: Display Temperature data on the LCD
+// 1: Display Humidity data on the LCD
+// 2: Display Heat index data on the LCD
+void changeLCDSensorDataByJoystickMovement() {
+  // helps to map y axis movement between -512 to 512
   yAxisMap = map(analogRead(Y_AXIS_ANALOG_STICK_PIN), 0, 1023, 512, -512);
   if (yAxisMap >= -350 && yAxisMap <= 350) {
-    return;
-  } else if (yAxisMap > 350 && millis() - joystickStateUpdateTimeout > 800) {
+    return; // exit when no movement is detected
+  } else if (yAxisMap > 350 && millis() - joystickStateUpdateTimeout > 500) {
     sensorDataType = sensorDataType < 2 ? (sensorDataType + 1) : 0;
     joystickStateUpdateTimeout = millis();
-  } else if (yAxisMap < -350 && millis() - joystickStateUpdateTimeout > 800) {
+  } else if (yAxisMap < -350 && millis() - joystickStateUpdateTimeout > 500) {
     sensorDataType = sensorDataType > 0 ? (sensorDataType - 1) : 2;
     joystickStateUpdateTimeout = millis();
   }                                    
@@ -44,12 +47,13 @@ void splitFloatValue() {
   floatSecondPart = floatSecondPart - floatFirstPart * 1000; // we will get the decimal part alone
 }
 
-void refreshSensorDataOnLCD() {
+// refreshes the information on the LCD
+void refreshInformationOnLCD() {
   char sensorDataBuff[20];
   lcd.clear();
   // we display sensor value based on the joystick state motion
   splitFloatValue();
-  // Custom string building from float value as the LCD is no able to display float values correctly
+  // Custom string building from float value as the LCD is not able to display float values correctly
   sprintf(sensorDataBuff, sensorDataType == TEMPERATURE ? "TEMP: %d.%d" : sensorDataType == HUMIDITY ? 
   "HUMI: %d.%d" : "HEAT: %d.%d", floatFirstPart, floatSecondPart);
   lcd.setCursor(0, 0);
@@ -58,12 +62,13 @@ void refreshSensorDataOnLCD() {
 
 // refreshes LCD every 1 second
 void refreshLCD() {
-  if(millis() - lcdRefreshTimeout >= 1000) {
-    refreshSensorDataOnLCD();
+  if(millis() - lcdRefreshTimeout >= 800) {
+    refreshInformationOnLCD();
     lcdRefreshTimeout = millis();
   }
 }
 
+// updates sensor data
 void updateSensorData(int type, float data) {
   if (type == TEMPERATURE) {
     tempData = data;
@@ -79,6 +84,7 @@ void uartReadSensorData() {
   char receivedCharacter;
   String readString;
   int sensorDataDelimiter = -1; // indicates no index
+  // reads uart synchronously with the transmitter
   while(digitalRead(UART_SIGNAL_PIN) == HIGH && Serial.available()) {
     delay(5); // delay to allow byte to arrive in input buffer
     receivedCharacter = Serial.read();
@@ -92,6 +98,7 @@ void uartReadSensorData() {
         updateSensorData(atoi(readString.substring(0, sensorDataDelimiter).c_str()), 
         atof(readString.substring(sensorDataDelimiter + 1, readString.length()).c_str()));
       } else {
+        // for debugging purpose
         Serial.println("Sensor Data Error");
       }
       // reset the sensor data
@@ -121,6 +128,6 @@ void setup() {
 
 void loop() {
   uartReadSensorData();
-  senseJoyStickChange();
+  changeLCDSensorDataByJoystickMovement();
   refreshLCD();
 }
