@@ -1,6 +1,7 @@
 #include <LiquidCrystal_I2C.h>
 #include "DHT11SensorDataTypes.h"
 
+#define NO_INDEX -1
 #define UART_SIGNAL_PIN 2 // signal pin for synchronizing with receiver
 #define Y_AXIS_ANALOG_STICK_PIN 15 // A2 pin on arduino
 
@@ -19,27 +20,27 @@ int yPosition = 0;
 int yAxisMap = 0;
 unsigned long joystickStateUpdateTimeout = millis();
 
-// updates sensorDataType based on joystick movement every 800 ms
+// updates sensorDataType based on joystick movement every 350 ms
 // cyclic function to cycle between 0->2 state
 // 0: Display Temperature data on the LCD
 // 1: Display Humidity data on the LCD
 // 2: Display Heat index data on the LCD
-void changeLCDSensorDataByJoystickMovement() {
+void changeLCDSensorDataByJoystickMovement(void) {
   // helps to map y axis movement between -512 to 512
   yAxisMap = map(analogRead(Y_AXIS_ANALOG_STICK_PIN), 0, 1023, 512, -512);
   if (yAxisMap >= -350 && yAxisMap <= 350) {
     return; // exit when no movement is detected
-  } else if (yAxisMap > 350 && millis() - joystickStateUpdateTimeout > 500) {
+  } else if (yAxisMap > 350 && millis() - joystickStateUpdateTimeout > 300) {
     sensorDataType = sensorDataType < 2 ? (sensorDataType + 1) : 0;
     joystickStateUpdateTimeout = millis();
-  } else if (yAxisMap < -350 && millis() - joystickStateUpdateTimeout > 500) {
+  } else if (yAxisMap < -350 && millis() - joystickStateUpdateTimeout > 300) {
     sensorDataType = sensorDataType > 0 ? (sensorDataType - 1) : 2;
     joystickStateUpdateTimeout = millis();
   }                                    
 }
 
 // 3 point decimal precision
-void splitFloatValue() {
+void splitFloatValue(void) {
   // truncate anything after the decimal
   float value = sensorDataType == TEMPERATURE ? tempData : sensorDataType == HUMIDITY ? humData : heatIndexData;
   floatFirstPart = value; 
@@ -48,7 +49,7 @@ void splitFloatValue() {
 }
 
 // refreshes the information on the LCD
-void refreshInformationOnLCD() {
+void refreshInformationOnLCD(void) {
   char sensorDataBuff[20];
   lcd.clear();
   // we display sensor value based on the joystick state motion
@@ -60,9 +61,9 @@ void refreshInformationOnLCD() {
   lcd.print(sensorDataBuff);
 }
 
-// refreshes LCD every 1 second
-void refreshLCD() {
-  if(millis() - lcdRefreshTimeout >= 800) {
+// refreshes LCD every 350 ms
+void refreshLCD(void) {
+  if(millis() - lcdRefreshTimeout >= 350) {
     refreshInformationOnLCD();
     lcdRefreshTimeout = millis();
   }
@@ -80,10 +81,10 @@ void updateSensorData(int type, float data) {
 }
 
 // reads sensor data by its type based on the meta data provided by the transmitter
-void uartReadSensorData() {
+void usartReadSensorData(void) {
   char receivedCharacter;
-  String readString;
-  int sensorDataDelimiter = -1; // indicates no index
+  String readString = "";
+  int sensorDataDelimiter = NO_INDEX; // indicates no index
   // reads uart synchronously with the transmitter
   while(digitalRead(UART_SIGNAL_PIN) == HIGH && Serial.available()) {
     delay(5); // delay to allow byte to arrive in input buffer
@@ -97,17 +98,25 @@ void uartReadSensorData() {
         // update the sensor data and its type
         updateSensorData(atoi(readString.substring(0, sensorDataDelimiter).c_str()), 
         atof(readString.substring(sensorDataDelimiter + 1, readString.length()).c_str()));
+        delay(10);
+        // return a transmission success to the transmitter
+        Serial.println(TRANSMISSION_SUCCESS);
+        // exit the funtion as we have a successful transmission
+        return;
       } else {
-        // for debugging purpose
-        Serial.println("Sensor Data Error");
+        delay(10);
+        // return a transmission failure to the transmitter
+        Serial.println(TRANSMISSION_FAILURE);
+        // exit the function to avoid delays in the overall program
+        return;
       }
-      // reset the sensor data
-      readString = "";
     } 
   }
   // discard incomplete sensor data 
   if (readString.length() > 0) {
-    readString = "";
+    delay(10);
+    // return a transmission failure to the transmitter
+    Serial.println(TRANSMISSION_FAILURE);
   }
 }
 
@@ -127,7 +136,7 @@ void setup() {
 }
 
 void loop() {
-  uartReadSensorData();
+  usartReadSensorData();
   changeLCDSensorDataByJoystickMovement();
   refreshLCD();
 }
